@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ServiceFinder</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body>
+    <header class="hero">
+        <h1>ServiceFinder</h1>
+        <p>Finde den passenden Dienstleister in deiner Nähe</p>
+        <button id="scrollDown">Mehr erfahren</button>
+    </header>
+
+    <section id="search" class="search-section">
+        <div class="search-bar">
+            <input type="text" id="query" placeholder="Welche Dienstleistung suchst du?" />
+            <select id="categoryFilter">
+                <option value="">Alle Kategorien</option>
+                <option value="handwerk">Handwerk</option>
+                <option value="it">IT & Technik</option>
+                <option value="reinigung">Reinigung</option>
+                <option value="garten">Garten & Landschaft</option>
+            </select>
+            <button id="searchButton">Suchen</button>
+        </div>
+        <div id="map" class="map"></div>
+        <ul id="results" class="results"></ul>
+    </section>
+
+    <section id="addService" class="add-section">
+        <h2>Dienstleistung anbieten</h2>
+        <input type="text" id="serviceName" placeholder="Name der Dienstleistung" />
+        <select id="serviceCategory">
+            <option value="handwerk">Handwerk</option>
+            <option value="it">IT & Technik</option>
+            <option value="reinigung">Reinigung</option>
+            <option value="garten">Garten & Landschaft</option>
+        </select>
+        <input type="text" id="serviceLocation" placeholder="Ort" />
+        <button id="addButton">Hinzufügen</button>
+    </section>
+
+    <footer>
+        <p>&copy; 2023 ServiceFinder</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
