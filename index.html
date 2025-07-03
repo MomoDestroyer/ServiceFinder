@@ -3,51 +3,935 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServiceFinder</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <title>ServiceFinder - Dienste</title>
+    <!-- Leaflet CSS for the map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --primary-color-dark: #0056b3;
+            --secondary-color: #6c757d;
+            --accent-color: #ffc107;
+            --accent-color-dark: #e0a800;
+            --background-color: #f8f9fa;
+            --surface-color: #ffffff;
+            --text-color: #212529;
+            --text-color-light: #6c757d;
+            --border-color: #dee2e6;
+            --border-radius: 8px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1.25em 0;
+            text-align: center;
+            box-shadow: var(--shadow-md);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2em;
+            font-weight: 700;
+        }
+        nav {
+            background-color: var(--primary-color-dark);
+            padding: 0.5em;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        nav button {
+            background: none;
+            border: none;
+            color: white;
+            opacity: 0.9;
+            margin: 0 5px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1em;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            transition: background-color 0.2s ease, opacity 0.2s ease;
+        }
+        nav button:hover {
+            opacity: 1;
+            background-color: rgba(255,255,255,0.1);
+        }
+        #nav-user-info {
+            color: white;
+            opacity: 0.8;
+            font-size: 0.9em;
+            margin: 0 10px;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .container {
+            width: 90%;
+            max-width: 1400px;
+            margin: 25px auto;
+            padding: 0;
+        }
+        .content-box {
+            background-color: var(--surface-color);
+            box-shadow: var(--shadow-md);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            border: 1px solid var(--border-color);
+        }
+        .services-layout { display: flex; flex-wrap: wrap; gap: 25px; }
+        .services-main { flex: 3; min-width: 300px; }
+        .services-map-container { flex: 2; min-width: 300px; position: sticky; top: 80px; align-self: flex-start; }
+        #map { height: 550px; border-radius: var(--border-radius); z-index: 1; background-color: #e9ecef; }
+        .filters { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 25px; align-items: flex-end; }
+        .filters .search-group { flex: 2 1 200px; }
+        .filters .filter-group { flex: 1 1 150px; }
+        .filters label { display: block; font-size: 0.9em; margin-bottom: 5px; font-weight: 500; color: var(--text-color-light); }
+        .filters input, .filters select {
+            width: 100%; padding: 10px; border: 1px solid var(--border-color);
+            border-radius: var(--border-radius); font-size: 1em; box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .filters input:focus, .filters select:focus {
+            outline: none; border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+        }
+        .service-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .service-card {
+            display: flex; flex-direction: column; justify-content: space-between;
+            border: 1px solid var(--border-color); border-radius: var(--border-radius);
+            padding: 15px; background-color: var(--surface-color); box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease-in-out; cursor: pointer;
+            opacity: 0; transform: translateY(20px); animation: popIn 0.5s forwards;
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .service-card:hover, .service-card.highlighted {
+            transform: translateY(-5px); border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+        .service-card h3 { margin-top: 0; color: var(--primary-color); font-size: 1.1em; font-weight: 600; }
+        .service-card p { font-size: 0.9em; color: var(--text-color-light); margin-bottom: 5px; line-height: 1.5; }
+        .service-card .category { font-style: italic; font-size: 0.8em; }
+        .service-card .location { font-weight: 600; font-size: 0.9em; margin-top: 10px; color: var(--text-color); }
+        .service-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        
+        .btn {
+            border: none; padding: 12px 20px; border-radius: var(--border-radius);
+            cursor: pointer; font-weight: 600; font-size: 1em;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-sm { padding: 6px 12px; font-size: 0.9em; }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-primary:hover { background-color: var(--primary-color-dark); }
+        .btn-accent { background-color: var(--accent-color); color: #333; }
+        .btn-accent:hover { background-color: var(--accent-color-dark); }
+        .btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        .smart-finder { text-align: center; margin-bottom: 25px; padding: 25px; background-color: #eef7ff; border: 1px solid #cce4ff; border-radius: var(--border-radius);}
+        .smart-finder h2 { color: var(--primary-color-dark); margin-top: 0; font-weight: 700; }
+        .smart-finder textarea {
+            width: 100%; max-width: 600px; height: 80px; padding: 10px;
+            border-radius: var(--border-radius); border: 1px solid var(--border-color);
+            margin-top: 10px; font-family: inherit; font-size: 1em; box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .smart-finder textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); }
+        
+        .form-container, .service-form { max-width: 700px; margin: 0 auto; }
+        .form-container .form-group, .service-form .form-group { margin-bottom: 20px; }
+        .form-container label, .service-form label { display: block; margin-bottom: 8px; font-weight: 600; }
+        .form-container input, .form-container select, .service-form input, .service-form select, .service-form textarea { width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--border-radius); box-sizing: border-box; font-size: 1em; }
+        .form-container input:focus, .form-container select:focus, .service-form input:focus, .service-form select:focus, .service-form textarea:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); }
+        
+        footer { text-align: center; padding: 25px 0; margin-top: 30px; background-color: #343a40; color: white; }
+        
+        .modal {
+            display: none; position: fixed; z-index: 1002; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal.visible { opacity: 1; }
+        .modal-content {
+            background-color: var(--surface-color); padding: 25px 30px; border: 1px solid var(--border-color);
+            width: 90%; max-width: 700px; border-radius: var(--border-radius); position: relative;
+            box-shadow: var(--shadow-md); transform: scale(0.95); transition: transform 0.3s ease;
+            max-height: 90vh; overflow-y: auto;
+        }
+        .modal.visible .modal-content { transform: scale(1); }
+        .close-button {
+            color: #aaa; position: absolute; top: 15px; right: 20px;
+            font-size: 28px; font-weight: bold; cursor: pointer; transition: color 0.2s;
+        }
+        .close-button:hover, .close-button:focus { color: var(--text-color); text-decoration: none; }
+        .modal .loading{ padding: 30px 0; }
+        
+        /* Auth Modal styles */
+        #authModal .modal-content { max-width: 500px; }
+        .auth-tabs { display: flex; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; }
+        .auth-tabs button { flex: 1; padding: 15px; border: none; background: none; cursor: pointer; font-size: 1.1em; font-weight: 600; color: var(--text-color-light); border-bottom: 3px solid transparent; transition: all 0.2s ease; }
+        .auth-tabs button.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+        .form-content { display: none; }
+        .form-content.active { display: block; animation: fadeIn 0.3s; }
+        .auth-modal-content .error-message { color: #dc3545; font-size: 0.9em; text-align: center; margin-bottom: 15px; }
+        
+        /* Star Rating */
+        .star-rating { display: flex; align-items: center; gap: 2px; }
+        .star-rating .star { cursor: pointer; color: var(--border-color); transition: color 0.2s; font-size: 1.2em;}
+        .star-rating .star.filled, .star-rating:not(.interactive) .star.rated { color: var(--accent-color); }
+        .star-rating.interactive .star:hover, .star-rating.interactive .star:hover ~ .star { color: var(--accent-color-dark); }
+        
+        /* Service Detail Modal & Review Section */
+        #serviceDetailContent h2 { margin-top: 0; color: var(--primary-color); }
+        #serviceDetailContent .detail-item { margin-bottom: 12px; display: flex; align-items: center; }
+        #serviceDetailContent .detail-item strong { color: var(--text-color); margin-right: 8px; width: 100px; }
+        #serviceDetailContent a { color: var(--primary-color); text-decoration: none; }
+        #serviceDetailContent a:hover { text-decoration: underline; }
+        #review-section { margin-top: 30px; border-top: 1px solid var(--border-color); padding-top: 20px; }
+        #review-summary { background: #eef7ff; border: 1px solid #cce4ff; padding: 15px; border-radius: var(--border-radius); margin-bottom: 20px; font-size: 0.9em; line-height: 1.6; }
+        #review-list .review { border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 15px; }
+        #review-list .review:last-child { border-bottom: none; }
+        #review-list .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;}
+        #review-list .review-header strong { font-size: 1.1em; }
+        #review-form { margin-top: 20px; background-color: #f8f9fa; padding: 20px; border-radius: var(--border-radius); }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+            width: 16px; height: 16px;
+            border: 2px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border-top-color: var(--text-color);
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
-    <header class="hero">
+    <header>
         <h1>ServiceFinder</h1>
-        <p>Finde den passenden Dienstleister in deiner Nähe</p>
-        <button id="scrollDown">Mehr erfahren</button>
     </header>
+    <nav id="main-nav"></nav>
 
-    <section id="search" class="search-section">
-        <div class="search-bar">
-            <input type="text" id="query" placeholder="Welche Dienstleistung suchst du?" />
-            <select id="categoryFilter">
-                <option value="">Alle Kategorien</option>
-                <option value="handwerk">Handwerk</option>
-                <option value="it">IT & Technik</option>
-                <option value="reinigung">Reinigung</option>
-                <option value="garten">Garten & Landschaft</option>
-            </select>
-            <button id="searchButton">Suchen</button>
+    <!-- Home Page -->
+    <div id="homePage" class="page active">
+        <div class="container">
+             <div class="smart-finder">
+                <h2>✨ Intelligente Suche</h2>
+                <p>Beschreiben Sie Ihr Problem und unsere KI findet den richtigen Dienst für Sie.</p>
+                <textarea id="problemDescription" rows="3" placeholder="z.B. Mein Wasserhahn tropft, ich brauche neue Reifen für mein Auto..."></textarea>
+                <button id="geminiSuggestBtn" class="btn btn-accent">Passenden Dienst finden</button>
+            </div>
+             <div class="content-box">
+                <h2>Willkommen bei ServiceFinder!</h2>
+                <p>Ihre zentrale Anlaufstelle, um die besten Dienstleister in Ihrer Nähe zu finden. Nutzen Sie die "Dienste"-Seite, um nach Stichwort, Kategorie und Ort zu suchen und die Ergebnisse direkt auf der Karte zu sehen.</p>
+            </div>
         </div>
-        <div id="map" class="map"></div>
-        <ul id="results" class="results"></ul>
-    </section>
+    </div>
 
-    <section id="addService" class="add-section">
-        <h2>Dienstleistung anbieten</h2>
-        <input type="text" id="serviceName" placeholder="Name der Dienstleistung" />
-        <select id="serviceCategory">
-            <option value="handwerk">Handwerk</option>
-            <option value="it">IT & Technik</option>
-            <option value="reinigung">Reinigung</option>
-            <option value="garten">Garten & Landschaft</option>
-        </select>
-        <input type="text" id="serviceLocation" placeholder="Ort" />
-        <button id="addButton">Hinzufügen</button>
-    </section>
+    <!-- Services Page -->
+    <div id="servicesPage" class="page">
+        <div class="container services-layout">
+            <div class="services-main">
+                <div class="content-box">
+                    <h2>Dienstleistungen finden</h2>
+                    <div class="filters">
+                        <div class="search-group"><label for="searchInput">Stichwort</label><input type="text" id="searchInput" placeholder="z.B. Reparatur, Reinigung..."></div>
+                        <div class="filter-group"><label for="categoryFilter">Kategorie</label><select id="categoryFilter"></select></div>
+                        <div class="filter-group"><label for="locationInput">Ort</label><input type="text" id="locationInput" placeholder="z.B. Berlin, München..."></div>
+                    </div>
+                    <div id="serviceList" class="service-list"></div>
+                    <div id="loadingMessage" class="loading" style="display:none;">Lade Dienste...</div>
+                    <div id="errorMessage" class="error" style="display:none;"></div>
+                </div>
+            </div>
+            <div class="services-map-container">
+                 <div class="content-box" style="padding: 10px;">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Service Page -->
+    <div id="addServicePage" class="page">
+        <div class="container content-box">
+            <h2>Neue Dienstleistung anbieten</h2>
+            <form id="addServiceForm" class="service-form">
+                <div class="form-group"><label for="providerName">Ihr Name / Firmenname</label><input type="text" id="providerName" required readonly></div>
+                <div class="form-group"><label for="serviceName">Name der Dienstleistung</label><input type="text" id="serviceName" required></div>
+                <div class="form-group"><label for="serviceCategory">Kategorie</label><select id="serviceCategory" required></select></div>
+                <div class="form-group"><label for="serviceWebsite">Webseite (optional)</label><input type="url" id="serviceWebsite" placeholder="https://beispiel.de"></div>
+                <div class="form-group"><label for="servicePhone">Telefon (optional)</label><input type="tel" id="servicePhone" placeholder="0123 456789"></div>
+                <div class="form-group"><label for="serviceLocation">Standort (Adresse)</label><input type="text" id="serviceLocation" placeholder="z.B. Musterstraße 1, 12345 Berlin" required></div>
+                <div class="form-group">
+                    <label for="serviceDescription">Beschreibung</label>
+                    <textarea id="serviceDescription" rows="5" required></textarea>
+                    <button type="button" id="generateDescBtn" class="btn btn-sm btn-accent" style="margin-top: 10px;">✨ Beschreibung mit KI erstellen</button>
+                </div>
+                <button type="submit" class="btn btn-primary">Dienst hinzufügen</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- My Account Page -->
+    <div id="accountPage" class="page">
+        <div class="container content-box"><div id="accountDetails" class="form-container"></div></div>
+    </div>
+
+    <!-- Modals -->
+    <div id="serviceDetailModal" class="modal"><div id="serviceDetailContent" class="modal-content"></div></div>
+    <div id="authModal" class="modal">
+        <div class="modal-content auth-modal-content">
+            <span class="close-button" onclick="hideModal('authModal')">&times;</span>
+            <div class="auth-tabs">
+                <button id="loginTabBtn" onclick="switchAuthTab('login')">Anmelden</button>
+                <button id="registerTabBtn" onclick="switchAuthTab('register')">Registrieren</button>
+            </div>
+            <div id="loginFormContent" class="form-content">
+                 <form id="loginForm" class="form-container">
+                    <p id="loginError" class="error-message" style="display:none;"></p>
+                    <div class="form-group"><label for="loginEmail">E-Mail</label><input type="email" id="loginEmail" value="kunde@test.de" required></div>
+                    <div class="form-group"><label for="loginPassword">Passwort</label><input type="password" id="loginPassword" value="123" required></div>
+                    <button type="submit" class="btn btn-primary">Anmelden</button>
+                </form>
+            </div>
+            <div id="registerFormContent" class="form-content">
+                 <form id="registerForm" class="form-container">
+                    <p id="registerError" class="error-message" style="display:none;"></p>
+                    <div class="form-group"><label for="registerName">Name / Firmenname</label><input type="text" id="registerName" required></div>
+                    <div class="form-group"><label for="registerEmail">E-Mail</label><input type="email" id="registerEmail" required></div>
+                    <div class="form-group"><label for="registerPassword">Passwort</label><input type="password" id="registerPassword" required></div>
+                    <div class="form-group"><label for="accountType">Kontotyp</label><select id="accountType" required><option value="customer">Kundenkonto</option><option value="business">Geschäftskonto</option></select></div>
+                    <button type="submit" class="btn btn-primary">Registrieren</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <footer>
-        <p>&copy; 2023 ServiceFinder</p>
+        <p>&copy; <span id="currentYear"></span> ServiceFinder. Alle Rechte vorbehalten.</p>
     </footer>
 
-    <script src="app.js"></script>
+    <script>
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+
+        // --- DOM Elements ---
+        const mainNav = document.getElementById('main-nav');
+        const serviceListContainer = document.getElementById('serviceList');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+        const locationInput = document.getElementById('locationInput');
+        const addServiceForm = document.getElementById('addServiceForm');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const generateDescBtn = document.getElementById('generateDescBtn');
+
+        // --- Data & State ---
+        const serviceCategories = { "Handwerk & Bau": ["Dachdecker", "Elektriker", "Fenster & Türen", "Fliesenleger", "Heizung & Sanitär", "Maler & Lackierer"], "Haushalt & Garten": ["Garten- & Landschaftsbau", "Gebäudereinigung", "Haushaltsauflösung", "Umzugshilfe"], "Fahrzeuge & Transport": ["Autoreinigung", "Fahrradwerkstatt", "KFZ-Werkstatt", "Kurierdienst"], "IT & Digitales": ["Computer-Reparatur", "Datenrettung", "Softwareentwicklung", "Webdesign", "Webentwicklung"], "Bildung & Unterricht": ["Fahrschule", "Fremdsprachen", "Musikunterricht", "Nachhilfe"], "Gesundheit & Wellness": ["Coaching", "Ernährungsberatung", "Fitness & Personal Training", "Massage", "Physiotherapie"], "Events & Gastronomie": ["Catering", "DJ", "Eventplanung", "Fotografie"], "Beratung & Finanzen": ["Buchhaltung", "Finanzberatung", "Steuerberatung", "Unternehmensberatung"], "Kreativ & Design": ["Grafikdesign", "Inneneinrichtung", "Text & Lektorat", "Video & Animation"] };
+        const mockUsers = [ { id: 'user1', name: 'Max Kunde', email: 'kunde@test.de', password: '123', type: 'customer' }, { id: 'user2', name: 'WebDev Solutions', email: 'anbieter@test.de', password: '123', type: 'business' } ];
+        let currentUser = null;
+        const mockServices = [ 
+            {id: "1", userId: "user2", name: "Moderne Web-Applikationen", category: "Webentwicklung", providerName: "WebDev Solutions", description: "Wir entwickeln maßgeschneiderte und performante Web-Anwendungen für Ihr Unternehmen, die auf allen Geräten eine exzellente Figur machen. Von der Konzeption bis zum Go-Live begleiten wir Sie partnerschaftlich.", location: {address: "Alexanderplatz 1, 10178 Berlin", lat: 52.5219, lng: 13.4132}, website: "https://webdev.de", phone: "030 123456", reviews: [{userId: 'user1', userName: 'Max K.', rating: 5, comment: 'Hervorragende Arbeit, sehr professionell und schnell. Unsere neue Webseite ist ein voller Erfolg!'}, {userId: 'user6', userName: 'Tina T.', rating: 4, comment: 'Gutes Ergebnis, die Kommunikation hätte etwas besser sein können.'}]}, 
+            {id: "2", userId: "user3", name: "Garten-Neugestaltung", category: "Garten- & Landschaftsbau", providerName: "Grüner Daumen GmbH", description: "Von der Planung bis zur Umsetzung verwandeln wir Ihren Garten in eine Wohlfühloase. Inklusive Pflanzenauswahl und Pflegehinweisen.", location: {address: "Englischer Garten 3, 80538 München", lat: 48.1642, lng: 11.6052}, website: "https://gruenerdaumen.de", phone: "089 654321", reviews: []}, 
+            {id: "3", userId: "user4", name: "Mathe-Nachhilfe (Abitur)", category: "Nachhilfe", providerName: "Mathe-Asse", description: "Intensive und individuelle Vorbereitung auf das Mathematik-Abitur durch erfahrene Lehrkräfte. Auch Online-Unterricht möglich.", location: {address: "Hauptstraße 10, 69117 Heidelberg", lat: 49.4076, lng: 8.6908}, website: "https://mathe-asse.de", phone: "06221 98765", reviews: [{userId: 'user5', userName: 'Anna S.', rating: 4, comment: 'Sehr hilfreich, mein Sohn hat sich deutlich verbessert. Manchmal etwas unpünktlich.'}]},
+            {id: "10", userId: "user10", name: "Fensterreinigung", category: "Gebäudereinigung", providerName: "Sauber & Klar", description: "Streifenfreie Fensterreinigung für Privat- und Geschäftskunden. Inklusive Rahmenreinigung.", location: { address: "Ebertplatz 5, 50668 Köln", lat: 50.9482, lng: 6.9591 }, website: "https://sauber-klar.de", phone: "0221 12345", reviews: [{userId: 'user1', userName: 'Max K.', rating: 5, comment: 'Super Service, schnell und gründlich!'}]},
+            {id: "11", userId: "user11", name: "Elektroinstallationen", category: "Elektriker", providerName: "Volt & Funke", description: "Fachgerechte Elektroinstallationen für Neu- und Altbauten. Wir beraten Sie zu Smart Home Lösungen.", location: { address: "Zeil 116, 60313 Frankfurt am Main", lat: 50.1146, lng: 8.6800 }, website: "https://volt-funke.de", phone: "069 54321", reviews: []},
+            {id: "12", userId: "user12", name: "Personal Training", category: "Fitness & Personal Training", providerName: "Fit & Aktiv", description: "Individuell angepasste Trainingspläne für Ihre persönlichen Fitnessziele. Motivation und Erfolg garantiert.", location: { address: "Reeperbahn 1, 20359 Hamburg", lat: 53.5497, lng: 9.9595 }, website: "https://fit-aktiv-hh.de", phone: "040 98765", reviews: [{userId: 'user7', userName: 'Julia R.', rating: 5, comment: 'Tolles Training, macht richtig Spaß und ich sehe schon erste Erfolge.'}]},
+            {id: "13", userId: "user13", name: "Logo Design", category: "Grafikdesign", providerName: "Kreativ-Ecke", description: "Professionelles und einzigartiges Logo-Design, das Ihre Marke perfekt repräsentiert.", location: { address: "Schulstraße 15, 45127 Essen", lat: 51.4556, lng: 7.0116 }, website: "https://kreativ-ecke.de", phone: "0201 112233", reviews: []},
+            {id: "14", userId: "user14", name: "Malerarbeiten", category: "Maler & Lackierer", providerName: "Farbenspiel", description: "Sämtliche Maler- und Lackierarbeiten im Innen- und Außenbereich. Wir bringen Farbe in Ihr Leben.", location: { address: "Marktplatz 1, 04109 Leipzig", lat: 51.3406, lng: 12.3744 }, website: "https://farbenspiel-leipzig.de", phone: "0341 445566", reviews: [{userId: 'user8', userName: 'Peter G.', rating: 4, comment: 'Gute Arbeit, aber die Baustelle hätte sauberer hinterlassen werden können.'}]},
+            {id: "15", userId: "user15", name: "Buchhaltungsservice", category: "Buchhaltung", providerName: "Zahlenwerk", description: "Zuverlässiger Buchhaltungsservice für Freiberufler und kleine Unternehmen. Konzentrieren Sie sich auf Ihr Geschäft, wir kümmern uns um die Zahlen.", location: { address: "Prager Straße 10, 01069 Dresden", lat: 51.0381, lng: 13.7424 }, website: "https://zahlenwerk-dresden.de", phone: "0351 778899", reviews: []},
+            {id: "16", userId: "user16", name: "Umzug mit Möbelmontage", category: "Umzugshilfe", providerName: "Alles an seinen Platz", description: "Wir organisieren Ihren kompletten Umzug inklusive Ab- und Aufbau Ihrer Möbel.", location: { address: "Königstraße 1A, 70173 Stuttgart", lat: 48.7758, lng: 9.1770 }, website: "https://umzug-stuttgart.de", phone: "0711 334455", reviews: [{userId: 'user9', userName: 'Sandra B.', rating: 5, comment: 'Alles super gelaufen, sehr freundliches und starkes Team. Kann ich nur empfehlen!'}]}
+        ];
+        
+        let map;
+        let markers = L.layerGroup();
+        
+        // --- Page & UI Management ---
+        function showPage(pageId) {
+            if (pageId === 'addServicePage' && currentUser?.type !== 'business') {
+                alert('Diese Funktion ist nur für Geschäftskonten verfügbar.');
+                return;
+            }
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            
+            if (pageId === 'servicesPage') {
+                setTimeout(() => {
+                    if (!map) {
+                        initMap();
+                    } else {
+                        map.invalidateSize();
+                    }
+                }, 10); 
+            }
+            if (pageId === 'addServicePage') {
+                 if (currentUser) document.getElementById('providerName').value = currentUser.name;
+            }
+             if (pageId === 'accountPage') {
+                displayAccountDetails();
+            }
+        }
+        
+        function updateNav() {
+            mainNav.innerHTML = '';
+            if (currentUser) {
+                mainNav.innerHTML += `<span id="nav-user-info">Angemeldet als: ${currentUser.name}</span>`;
+                mainNav.innerHTML += `<button onclick="showPage('servicesPage')">Dienste</button>`;
+                if (currentUser.type === 'business') {
+                     mainNav.innerHTML += `<button onclick="showPage('addServicePage')">Dienst anbieten</button>`;
+                }
+                mainNav.innerHTML += `<button onclick="showPage('accountPage')">Mein Konto</button>`;
+                mainNav.innerHTML += `<button onclick="handleLogout()">Logout</button>`;
+            } else {
+                 mainNav.innerHTML += `<button onclick="showPage('homePage')">Startseite</button>`;
+                 mainNav.innerHTML += `<button onclick="showPage('servicesPage')">Dienste</button>`;
+                 mainNav.innerHTML += `<button onclick="showModal('authModal')">Anmelden</button>`;
+            }
+        }
+        
+        function displayAccountDetails() {
+            const container = document.getElementById('accountDetails');
+            if (!currentUser) {
+                container.innerHTML = `<p>Bitte melden Sie sich an, um Ihre Kontodetails zu sehen.</p>`;
+                return;
+            }
+            container.innerHTML = `
+                <h2>Mein Konto</h2>
+                <p><strong>Name:</strong> ${escapeHTML(currentUser.name)}</p>
+                <p><strong>Email:</strong> ${escapeHTML(currentUser.email)}</p>
+                <p><strong>Kontotyp:</strong> ${currentUser.type === 'business' ? 'Geschäftskonto' : 'Kundenkonto'}</p>
+            `;
+        }
+        
+        function createStarRating(rating, interactive = false) {
+            let starsHTML = `<div class="star-rating ${interactive ? 'interactive' : ''}" ${interactive ? `data-rating="0"` : ''}>`;
+            for (let i = 1; i <= 5; i++) {
+                const starClass = i <= rating ? 'star filled rated' : 'star';
+                starsHTML += `<span class="${starClass}" data-value="${i}">&#9733;</span>`;
+            }
+            starsHTML += `</div>`;
+            return starsHTML;
+        }
+
+        // --- Map Functions ---
+        function initMap() {
+            map = L.map('map').setView([51.1657, 10.4515], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+            markers.addTo(map);
+
+            const allServiceLocations = mockServices.filter(s => s.location?.lat && s.location?.lng).map(s => [s.location.lat, s.location.lng]);
+            if(allServiceLocations.length > 0) {
+                 const bounds = L.latLngBounds(allServiceLocations);
+                 map.fitBounds(bounds, {padding: [50, 50]});
+            }
+
+            map.on('moveend', applyFilters);
+            map.on('zoomend', applyFilters);
+            applyFilters();
+        }
+        function updateMapMarkers(services) {
+            markers.clearLayers();
+            services.forEach(service => {
+                if (service.location?.lat && service.location?.lng) {
+                    const marker = L.marker([service.location.lat, service.location.lng]);
+                    marker.bindPopup(`<b>${escapeHTML(service.name)}</b><br>${escapeHTML(service.providerName)}`);
+                    const cardElement = document.getElementById(`service-${service.id}`);
+                    marker.on('mouseover', () => cardElement?.classList.add('highlighted'));
+                    marker.on('mouseout', () => cardElement?.classList.remove('highlighted'));
+                    marker.on('click', () => showServiceDetails(service.id));
+                    markers.addLayer(marker);
+                }
+            });
+        }
+
+        // --- Modal Management ---
+        function showModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if(modal) {
+                modal.style.display = 'flex';
+                setTimeout(() => modal.classList.add('visible'), 10);
+                if(modalId === 'authModal') switchAuthTab('login');
+            }
+        }
+        function hideModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if(modal){
+                modal.classList.remove('visible');
+                setTimeout(() => modal.style.display = 'none', 300);
+            }
+        }
+        function switchAuthTab(tabName) {
+             document.querySelectorAll('.auth-tabs button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.form-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}TabBtn`).classList.add('active');
+            document.getElementById(`${tabName}FormContent`).classList.add('active');
+        }
+
+        // --- Authentication ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const loginError = document.getElementById('loginError');
+            if(loginError) loginError.style.display = 'none';
+
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const user = mockUsers.find(u => u.email === email && u.password === password);
+
+            if (user) {
+                currentUser = user;
+                updateNav();
+                hideModal('authModal');
+                showPage('servicesPage');
+            } else {
+                if(loginError) {
+                    loginError.textContent = 'E-Mail oder Passwort ist falsch.';
+                    loginError.style.display = 'block';
+                }
+            }
+        }
+        function handleRegister(e) {
+            e.preventDefault();
+            const registerError = document.getElementById('registerError');
+            if(registerError) registerError.style.display = 'none';
+
+            const name = document.getElementById('registerName').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const type = document.getElementById('accountType').value;
+
+            if (mockUsers.some(u => u.email === email)) {
+                if(registerError) {
+                    registerError.textContent = 'Ein Konto mit dieser E-Mail existiert bereits.';
+                    registerError.style.display = 'block';
+                }
+                return;
+            }
+            
+            const newUser = { id: `user${Date.now()}`, name, email, password, type };
+            mockUsers.push(newUser);
+            currentUser = newUser;
+            updateNav();
+            hideModal('authModal');
+            showPage('servicesPage');
+        }
+        function handleLogout() {
+            currentUser = null;
+            updateNav();
+            showPage('homePage');
+        }
+
+        // --- Gemini API Functions (Simulated) ---
+        async function callGeminiAPI(prompt, buttonToDisable) {
+             const apiKey = ""; // Keep empty for demo
+             if (apiKey === "") {
+                console.log("SIMULATING GEMINI API CALL. Prompt:", prompt);
+                if(buttonToDisable){
+                    const originalText = buttonToDisable.textContent;
+                    buttonToDisable.disabled = true;
+                    buttonToDisable.innerHTML = `Analysiere... <span class="spinner"></span>`;
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    buttonToDisable.disabled = false;
+                    buttonToDisable.innerHTML = originalText;
+                }
+                if (prompt.includes("Zusammenfassung")) {
+                    return "• **Positiv:** Schnelle und professionelle Arbeit. Gutes Endergebnis.\n• **Negativ:** Kommunikation könnte verbessert werden. Manchmal leichte Unpünktlichkeit.";
+                } else if (prompt.includes("Marketing-Beschreibung")) {
+                    return "Wir bieten erstklassige, auf Ihre Bedürfnisse zugeschnittene Lösungen mit einem Fokus auf Qualität und Kundenzufriedenheit. Vertrauen Sie auf unsere Expertise für ein perfektes Ergebnis.";
+                } else {
+                    const categoryMatch = prompt.match(/Kategorie aus dieser Liste: (.*)\./);
+                    if(categoryMatch && categoryMatch[1]) {
+                        return categoryMatch[1].split(',')[0];
+                    }
+                    return "Handwerk & Bau";
+                }
+            }
+        }
+        async function findServiceCategory() {
+             if (!document.getElementById('problemDescription').value.trim()) { alert("Bitte beschreiben Sie Ihr Problem."); return; }
+            try {
+                const allCategories = Object.values(serviceCategories).flat().join(', ');
+                const prompt = `Ein Kunde beschreibt folgendes Problem: "${document.getElementById('problemDescription').value}". Welche dieser exakten Kategorien passt am besten? Antworte NUR mit dem Namen der Kategorie aus dieser Liste: ${allCategories}.`;
+                const suggestedCategory = await callGeminiAPI(prompt, document.getElementById('geminiSuggestBtn'));
+                showPage('servicesPage');
+                document.getElementById('searchInput').value = ''; 
+                document.getElementById('locationInput').value = '';
+                document.getElementById('categoryFilter').value = suggestedCategory;
+                applyFilters();
+            } catch (error) {
+                console.error("Fehler bei der intelligenten Suche:", error);
+                alert("Ein Fehler ist bei der intelligenten Suche aufgetreten.");
+            }
+        }
+        async function generateDescriptionForForm() {
+            const name = document.getElementById('serviceName').value;
+            const category = document.querySelector('#addServicePage #serviceCategory').value;
+            if(!name || !category) {
+                alert("Bitte geben Sie zuerst Name und Kategorie der Dienstleistung an.");
+                return;
+            }
+            try {
+                const prompt = `Schreibe eine professionelle, einladende und detaillierte Marketing-Beschreibung (ca. 2-3 Sätze) für eine Dienstleistung. Antworte nur mit dem Beschreibungstext. Name: "${name}", Kategorie: "${category}".`;
+                const newDescription = await callGeminiAPI(prompt, generateDescBtn);
+                document.getElementById('serviceDescription').value = newDescription;
+            } catch (error) {
+                 console.error("Fehler bei der Beschreibungserstellung:", error);
+                 alert("Ein Fehler ist aufgetreten. Die Beschreibung konnte nicht erstellt werden.");
+            }
+        }
+        async function summarizeReviews(service) {
+            const summaryContainer = document.getElementById('review-summary');
+            const summaryBtn = document.getElementById('summarize-btn');
+            if (!summaryContainer || !summaryBtn) return;
+            
+            try {
+                const reviewTexts = service.reviews.map(r => `"${r.comment}" (Bewertung: ${r.rating}/5 Sternen)`).join('; ');
+                const prompt = `Du bist ein hilfreicher Assistent. Fasse die folgenden Kundenbewertungen für eine Dienstleistung kurz und bündig zusammen. Nenne die wichtigsten positiven und negativen Punkte in Stichpunkten. Antworte auf Deutsch. Hier sind die Bewertungen: ${reviewTexts}`;
+                const summary = await callGeminiAPI(prompt, summaryBtn);
+                summaryContainer.innerHTML = summary.replace(/\*/g, '•');
+                summaryContainer.style.display = 'block';
+            } catch(error) {
+                console.error("Fehler bei der Zusammenfassung:", error);
+                summaryContainer.innerHTML = "Die Zusammenfassung konnte nicht erstellt werden.";
+                 summaryContainer.style.display = 'block';
+            }
+        }
+        
+        // --- Core App Functions ---
+        function applyFilters() {
+            if (!map) return;
+            const loadingMessage = document.getElementById('loadingMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            if (loadingMessage) loadingMessage.style.display = 'block';
+            if (errorMessage) errorMessage.style.display = 'none';
+            if(serviceListContainer) serviceListContainer.innerHTML = '';
+
+            setTimeout(() => { 
+                try {
+                    const searchTerm = searchInput.value.toLowerCase();
+                    const selectedCategory = categoryFilter.value;
+                    const locationTerm = locationInput.value.toLowerCase();
+                    const mapBounds = map.getBounds();
+
+                    let results = mockServices.filter(service => {
+                        const matchesSearch = !searchTerm || service.name.toLowerCase().includes(searchTerm) || service.providerName.toLowerCase().includes(searchTerm);
+                        const matchesCategory = !selectedCategory || service.category === selectedCategory;
+                        const matchesLocationText = !locationTerm || (service.location && service.location.address.toLowerCase().includes(locationTerm));
+                        const inMapView = service.location?.lat && service.location?.lng ? mapBounds.contains([service.location.lat, service.location.lng]) : false;
+                        return matchesSearch && matchesCategory && matchesLocationText && inMapView;
+                    });
+                    displayServices(results);
+                } catch (error) {
+                    console.error('Filterfehler:', error);
+                    if(errorMessage) {
+                         errorMessage.textContent = `Ein Fehler ist aufgetreten.`;
+                         errorMessage.style.display = 'block';
+                    }
+                } finally {
+                   if(loadingMessage) loadingMessage.style.display = 'none';
+                }
+            }, 100);
+        }
+        function displayServices(services) {
+            serviceListContainer.innerHTML = '';
+            if (!services || services.length === 0) {
+                serviceListContainer.innerHTML = '<p class="loading">Keine Dienste für diese Auswahl im sichtbaren Kartenbereich gefunden.</p>';
+            } else {
+                services.forEach((service, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'service-card';
+                    card.id = `service-${service.id}`;
+                    card.style.animationDelay = `${index * 50}ms`;
+                    
+                    const name = service.name || "Unbenannter Dienst";
+                    const category = service.category || "Keine Kategorie";
+                    const providerName = service.providerName || "Unbekannter Anbieter";
+                    const totalRating = service.reviews.reduce((acc, review) => acc + review.rating, 0);
+                    const avgRating = service.reviews.length > 0 ? (totalRating / service.reviews.length).toFixed(1) : "N/A";
+                    
+                    card.innerHTML = `
+                        <div>
+                            <h3>${escapeHTML(name)}</h3>
+                            <p class="category">${escapeHTML(category)}</p>
+                            <p>Anbieter: ${escapeHTML(providerName)}</p>
+                        </div>
+                        <div class="service-card-footer">
+                            ${createStarRating(Math.round(avgRating))}
+                            <span>${avgRating} (${service.reviews.length})</span>
+                        </div>
+                    `;
+                    card.addEventListener('click', () => showServiceDetails(service.id));
+                    const marker = findMarkerForService(service.id);
+                    if(marker) {
+                        card.addEventListener('mouseover', () => marker.openPopup());
+                        card.addEventListener('mouseout', () => marker.closePopup());
+                    }
+                    serviceListContainer.appendChild(card);
+                });
+            }
+            updateMapMarkers(services);
+        }
+        function findMarkerForService(serviceId) {
+             let foundMarker = null;
+            const service = mockServices.find(s => s.id === serviceId);
+            if (!service || !service.location) return null;
+
+            markers.eachLayer(marker => {
+                const latLng = marker.getLatLng();
+                if (latLng.lat === service.location.lat && latLng.lng === service.location.lng) {
+                    foundMarker = marker;
+                }
+            });
+            return foundMarker;
+        }
+        function escapeHTML(str) {
+            return str ? str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;') : "";
+        }
+        function showServiceDetails(serviceId) {
+            const service = mockServices.find(s => s.id === serviceId);
+            if (!service) return;
+            const detailContent = document.getElementById('serviceDetailContent');
+            const totalRating = service.reviews.reduce((acc, review) => acc + review.rating, 0);
+            const avgRating = service.reviews.length > 0 ? (totalRating / service.reviews.length).toFixed(1) : "Noch keine";
+
+            detailContent.innerHTML = `
+                <span class="close-button" onclick="hideModal('serviceDetailModal')">&times;</span>
+                <h2>${escapeHTML(service.name)}</h2>
+                <div class="detail-item"><strong>Anbieter:</strong> <span>${escapeHTML(service.providerName)}</span></div>
+                <div class="detail-item"><strong>Kategorie:</strong> <span>${escapeHTML(service.category)}</span></div>
+                <div class="detail-item"><strong>Standort:</strong> <span>${escapeHTML(service.location.address)}</span></div>
+                ${service.website ? `<div class="detail-item"><strong>Webseite:</strong> <a href="${service.website}" target="_blank" rel="noopener noreferrer">${service.website}</a></div>` : ''}
+                ${service.phone ? `<div class="detail-item"><strong>Telefon:</strong> <a href="tel:${service.phone}">${service.phone}</a></div>` : ''}
+                <div class="detail-item" style="align-items: flex-start;"><strong>Beschreibung:</strong> <p style="margin:0; flex:1;">${escapeHTML(service.description)}</p></div>
+                
+                <div id="review-section">
+                    <h3>Bewertungen (${service.reviews.length}) - Durchschnitt: ${avgRating}</h3>
+                    ${service.reviews.length > 1 ? `<button id="summarize-btn" class="btn btn-sm btn-accent" onclick='summarizeReviews(mockServices.find(s=>s.id === "${service.id}"))'>✨ Bewertungen zusammenfassen</button>` : ''}
+                    <div id="review-summary" style="display:none; margin-top: 15px;"></div>
+                    <div id="review-list"></div>
+                    <div id="review-form-container"></div>
+                </div>
+            `;
+            renderReviews(service);
+            showModal('serviceDetailModal');
+        }
+        function renderReviews(service) {
+            const reviewList = document.getElementById('review-list');
+            if(!reviewList) return;
+            reviewList.innerHTML = '';
+            if (service.reviews.length === 0) {
+                reviewList.innerHTML = '<p>Für diesen Dienst gibt es noch keine Bewertungen.</p>';
+            } else {
+                service.reviews.forEach(review => {
+                    const reviewEl = document.createElement('div');
+                    reviewEl.className = 'review';
+                    reviewEl.innerHTML = `
+                        <div class="review-header">
+                            <strong>${escapeHTML(review.userName)}</strong>
+                            ${createStarRating(review.rating)}
+                        </div>
+                        <p>${escapeHTML(review.comment)}</p>
+                    `;
+                    reviewList.appendChild(reviewEl);
+                });
+            }
+
+            const reviewFormContainer = document.getElementById('review-form-container');
+            if(!reviewFormContainer) return;
+            if (currentUser && currentUser.type === 'customer' && !service.reviews.some(r => r.userId === currentUser.id)) {
+                reviewFormContainer.innerHTML = `
+                    <form id="review-form">
+                        <h4>Ihre Bewertung abgeben</h4>
+                        <div class="form-group">
+                            <label>Bewertung</label>
+                            <div class="star-rating interactive" id="new-review-stars">
+                                <span class="star" data-value="1">&#9733;</span>
+                                <span class="star" data-value="2">&#9733;</span>
+                                <span class="star" data-value="3">&#9733;</span>
+                                <span class="star" data-value="4">&#9733;</span>
+                                <span class="star" data-value="5">&#9733;</span>
+                            </div>
+                        </div>
+                         <div class="form-group">
+                             <label for="reviewComment">Kommentar</label>
+                            <textarea id="reviewComment" rows="4" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Bewertung absenden</button>
+                    </form>
+                `;
+                setupReviewForm(service);
+            } else if (currentUser && currentUser.type === 'customer') {
+                 reviewFormContainer.innerHTML = '<p><em>Sie haben diesen Dienst bereits bewertet.</em></p>';
+            } else {
+                 reviewFormContainer.innerHTML = '';
+            }
+        }
+        function setupReviewForm(service) {
+            const form = document.getElementById('review-form');
+            if(!form) return;
+            const starsContainer = document.getElementById('new-review-stars');
+            const stars = starsContainer.querySelectorAll('.star');
+            let currentRating = 0;
+
+            stars.forEach(star => {
+                star.addEventListener('mouseover', () => {
+                    stars.forEach(s => s.classList.remove('filled'));
+                    for (let i = 0; i < star.dataset.value; i++) {
+                        stars[i].classList.add('filled');
+                    }
+                });
+                star.addEventListener('mouseout', () => {
+                     stars.forEach(s => s.classList.remove('filled'));
+                     for (let i = 0; i < currentRating; i++) {
+                        stars[i].classList.add('filled');
+                    }
+                });
+                star.addEventListener('click', () => {
+                    currentRating = star.dataset.value;
+                    starsContainer.dataset.rating = currentRating;
+                });
+            });
+
+            form.addEventListener('submit', e => {
+                e.preventDefault();
+                const comment = document.getElementById('reviewComment').value;
+                if (currentRating === 0) {
+                    alert('Bitte geben Sie eine Sterne-Bewertung ab.');
+                    return;
+                }
+                const newReview = {
+                    userId: currentUser.id,
+                    userName: currentUser.name,
+                    rating: parseInt(currentRating),
+                    comment: comment
+                };
+                service.reviews.push(newReview);
+                renderReviews(service);
+                const listCard = document.getElementById(`service-${service.id}`);
+                if (listCard) {
+                     const totalRating = service.reviews.reduce((acc, review) => acc + review.rating, 0);
+                     const avgRating = service.reviews.length > 0 ? (totalRating / service.reviews.length).toFixed(1) : "N/A";
+                     const footer = listCard.querySelector('.service-card-footer');
+                     if(footer) footer.innerHTML = `${createStarRating(Math.round(avgRating))} <span>${avgRating} (${service.reviews.length})</span>`;
+                }
+            });
+        }
+        function populateCategoryDropdowns() {
+            const dropdowns = [document.getElementById('categoryFilter'), document.querySelector('#addServicePage #serviceCategory')];
+            dropdowns.forEach(dropdown => {
+                if(!dropdown) return;
+                dropdown.innerHTML = ''; 
+                if (dropdown.id === 'categoryFilter') {
+                    const allOption = document.createElement('option');
+                    allOption.value = "";
+                    allOption.textContent = "Alle Kategorien";
+                    dropdown.appendChild(allOption);
+                }
+                for (const groupName in serviceCategories) {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = groupName;
+                    serviceCategories[groupName].forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category;
+                        option.textContent = category;
+                        optgroup.appendChild(option);
+                    });
+                    dropdown.appendChild(optgroup);
+                }
+            });
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const geminiSuggestBtn = document.getElementById('geminiSuggestBtn');
+            if(geminiSuggestBtn) geminiSuggestBtn.addEventListener('click', findServiceCategory);
+            
+            const loginForm = document.getElementById('loginForm');
+            if(loginForm) loginForm.addEventListener('submit', handleLogin);
+
+            const registerForm = document.getElementById('registerForm');
+            if(registerForm) registerForm.addEventListener('submit', handleRegister);
+
+            const generateDescBtn = document.getElementById('generateDescBtn');
+            if(generateDescBtn) generateDescBtn.addEventListener('click', generateDescriptionForForm);
+        
+            const addServiceForm = document.getElementById('addServiceForm');
+            if(addServiceForm) addServiceForm.addEventListener('submit', (event) => {
+                event.preventDefault();
+                if (!currentUser || currentUser.type !== 'business') return;
+                const newService = {
+                    id: String(Date.now()),
+                    userId: currentUser.id,
+                    name: document.getElementById('serviceName').value,
+                    category: document.querySelector('#addServicePage #serviceCategory').value,
+                    description: document.getElementById('serviceDescription').value,
+                    providerName: document.getElementById('providerName').value,
+                    website: document.getElementById('serviceWebsite').value,
+                    phone: document.getElementById('servicePhone').value,
+                    location: { address: document.getElementById('serviceLocation').value, lat: 52.52 + (Math.random() - 0.5) * 0.1, lng: 13.40 + (Math.random() - 0.5) * 0.1 },
+                    reviews: []
+                };
+                mockServices.unshift(newService);
+                addServiceForm.reset();
+                alert('Dienst erfolgreich hinzugefügt!');
+                showPage('servicesPage');
+            });
+            
+            const searchInput = document.getElementById('searchInput');
+            const categoryFilter = document.getElementById('categoryFilter');
+            const locationInput = document.getElementById('locationInput');
+            if(searchInput) searchInput.addEventListener('input', applyFilters);
+            if(categoryFilter) categoryFilter.addEventListener('input', applyFilters);
+            if(locationInput) locationInput.addEventListener('input', applyFilters);
+            
+            populateCategoryDropdowns();
+            updateNav();
+            showPage('homePage');
+        });
+    </script>
+    <div class="container content-box" style="margin-top:30px;">
+        <ul>
+            <li>Impressum</li>
+            <li>Datenschutzerklärung</li>
+            <li>Cookie-Hinweis / Consent-Banner</li>
+            <li>AGB (optional)</li>
+            <li>Widerrufsbelehrung (optional)</li>
+            <li>Online-Streitbeilegung (optional)</li>
+            <li>Urheberrechtshinweise (optional)</li>
+        </ul>
+    </div>
 </body>
 </html>
